@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chameleon · Every canvas</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Chameleon home"
+        ><span class="mark" aria-hidden="true">c</span>chameleon<span
+          class="brand-tag"
+          >DESIGN THAT ADAPTS</span
+        ></a
+      >
+      <span class="local-pill"><i></i> On your machine</span>
+    </header>
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">ANY DESIGN. EVERY CANVAS.</p>
+        <h1>Keep the idea.<br /><em>Change the canvas.</em></h1>
+      </div>
+      <p class="intro">
+        Turn one finished design into a whole campaign.<br />Same content. Same
+        brand. A layout that fits.
+      </p>
+    </div>
+    <main class="workspace">
+      <aside class="controls" aria-label="Resize controls">
+        <section>
+          <div class="section-title">
+            <span>01</span>
+            <h2>Your design</h2>
+          </div>
+          <label for="taskSelect">Start with a sample</label
+          ><select id="taskSelect" disabled>
+            <option>Loading designs…</option>
+          </select>
+          <div class="import-row">
+            <button class="file-button" id="importBtn">＋ Import JSON</button
+            ><input
+              id="jsonFile"
+              type="file"
+              accept=".json,application/json"
+              hidden
+            /><button class="file-button secondary" id="assetsBtn">
+              Add images</button
+            ><input
+              id="assetFiles"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              multiple
+              hidden
+            />
+          </div>
+          <p id="sourceInfo" class="helper">
+            Use a design in the Chameleon format.
+          </p>
+        </section>
+        <section>
+          <div class="section-title">
+            <span>02</span>
+            <h2>Make it fit</h2>
+          </div>
+          <div class="presets" id="presets" aria-label="Canvas presets"></div>
+          <div class="dimensions">
+            <label for="targetW"
+              >Width
+              <div class="input-unit">
+                <input
+                  id="targetW"
+                  type="number"
+                  min="1"
+                  max="8192"
+                  value="1600"
+                /><span>px</span>
+              </div></label
+            ><span class="multiply" aria-hidden="true">×</span
+            ><label for="targetH"
+              >Height
+              <div class="input-unit">
+                <input
+                  id="targetH"
+                  type="number"
+                  min="1"
+                  max="8192"
+                  value="400"
+                /><span>px</span>
+              </div></label
+            >
+          </div>
+          <label for="modeSelect">Layout direction</label
+          ><select id="modeSelect">
+            <option value="auto">Find the best fit</option>
+            <option value="vertical">Vertical stack</option>
+            <option value="split">Split landscape</option>
+            <option value="banner">Banner columns</option>
+            <option value="compact">Compact banner</option>
+          </select>
+          <button id="runBtn" class="primary" disabled>
+            Reflow design <span aria-hidden="true">↗</span>
+          </button>
+          <p class="preserve-note">
+            <span aria-hidden="true">◇</span> Every element and every word
+            stays.
+          </p>
+        </section>
+        <section class="export-section">
+          <div class="section-title">
+            <span>03</span>
+            <h2>Ready to use</h2>
+          </div>
+          <div class="export-row">
+            <button id="pngBtn" disabled>Download PNG</button
+            ><button id="jsonBtn" disabled>Layout JSON</button>
+          </div>
+          <button id="batchBtn" class="wide-button" disabled>
+            Export campaign · 4 sizes <span>↓</span>
+          </button>
+          <p class="helper">
+            Post, story, thumbnail and banner, with a quality report.
+          </p>
+          <button
+            id="expressBtn"
+            class="primary express-button"
+            hidden
+            disabled
+          >
+            Add as a new Express page ↗
+          </button>
+          <p class="helper" id="hostNote" hidden>
+            The preview is inserted as an image. Download JSON to keep the
+            editable layout data.
+          </p>
+        </section>
+        <details class="connection">
+          <summary>Local service connection</summary>
+          <label for="serviceUrl">Service URL</label
+          ><input
+            id="serviceUrl"
+            type="url"
+            placeholder="http://localhost:5050"
+          /><button id="connectBtn">Connect</button>
+          <p class="helper">
+            Keep the Python studio running while using the Express add-on.
+          </p>
+        </details>
+      </aside>
+      <section class="preview-column" aria-label="Design preview">
+        <div class="preview-panel">
+          <div class="preview-toolbar">
+            <div class="tabs" role="tablist" aria-label="Preview mode">
+              <button id="resultTab" role="tab" aria-selected="true">
+                Your resize</button
+              ><button id="compareTab" role="tab" aria-selected="false">
+                Compare original
+              </button>
+            </div>
+            <div class="view-actions">
+              <span id="canvasLabel">1600 × 400</span
+              ><button id="zoomBtn" title="Toggle actual pixels">Fit</button>
+            </div>
+          </div>
+          <div id="previewStage" class="preview-stage">
+            <div id="emptyState" class="empty-state">
+              <span class="empty-mark">↗</span>
+              <h2>A new shape for your idea.</h2>
+              <p>Choose a design and a canvas to begin.</p>
+            </div>
+            <div id="sourceFrame" class="design-frame" hidden>
+              <div class="frame-caption">
+                ORIGINAL <span id="sourceCanvasLabel"></span>
+              </div>
+              <img id="sourceImage" alt="Original design" />
+            </div>
+            <div id="outputFrame" class="design-frame" hidden>
+              <div class="frame-caption">
+                REFLOWED <span id="outputCanvasLabel"></span>
+              </div>
+              <img
+                id="outputImage"
+                alt="Design rearranged for the target canvas"
+              />
+            </div>
+          </div>
+          <div class="preview-footer">
+            <span id="previewStatus">Waiting for your design</span
+            ><span id="runtime"></span>
+          </div>
+        </div>
+        <div
+          id="notice"
+          class="notice"
+          role="status"
+          aria-live="polite"
+          hidden
+        ></div>
+        <section id="qualityPanel" class="quality-panel" hidden>
+          <div class="quality-heading">
+            <div>
+              <p class="eyebrow">THE DETAILS MATTER</p>
+              <h2 id="qualityTitle">Made to fit.</h2>
+            </div>
+            <span id="qualityBadge" class="quality-badge"></span>
+          </div>
+          <div class="checks" id="checks"></div>
+          <div id="issues" class="issues"></div>
+          <p class="audit-note">
+            Local checks assess fit and readability. They are separate from the
+            hackathon’s official judging.
+          </p>
+        </section>
+      </section>
+    </main>
+    <footer class="page-footer">
+      <span>CHAMELEON / ADOBE UNIVERSITY HACKATHON 2026</span
+      ><span>Reflowed with intent.</span>
+    </footer>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

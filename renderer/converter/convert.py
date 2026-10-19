@@ -173,19 +173,19 @@ def _append_text(out: Dict[str, Any], element: Dict[str, Any], font_manager) -> 
 
     for run in element.get("style_runs") or []:
         start = max(0, int(run.get("start", 0)))
-        end = min(n - 1, int(run.get("end", n - 1)))
-        if start > end:
+        end = min(n, int(run.get("end", n)))
+        if start >= end:
             continue
         if "color" in run:
-            for i in range(start, end + 1):
+            for i in range(start, end):
                 colors[i] = run["color"]
         if "font_weight" in run:
             run_bold = _normalize_weight(run.get("font_weight")) in _BOLD_WEIGHTS
-            for i in range(start, end + 1):
+            for i in range(start, end):
                 bold_flags[i] = run_bold
         if "font_style" in run or "italic" in run:
             run_italic = _is_italic(run.get("font_style") or run.get("italic"))
-            for i in range(start, end + 1):
+            for i in range(start, end):
                 italic_flags[i] = run_italic
 
     text_line = list(accumulate(int(c == "\n") for c in wrapped))
@@ -267,6 +267,10 @@ def render_design_to_png(
 
     renderer = _get_renderer(fonts_dir)
     example, warnings = convert_chameleon_to_crello(design, renderer.font_manager, assets_dir)
-    image_bytes = renderer.render(example, max_size=max_size or 2048, format="png")
+    # Scoring artifacts must match the requested canvas, including large posters.
+    # Only explicit thumbnail callers may request a smaller rendering.
+    canvas = design.get("source", design)["canvas"]
+    render_size = max_size if max_size is not None else max(canvas["width"], canvas["height"])
+    image_bytes = renderer.render(example, max_size=render_size, format="png")
     Path(png_path).write_bytes(image_bytes)
     return warnings

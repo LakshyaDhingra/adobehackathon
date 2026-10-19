@@ -20,3 +20,12 @@ venv/
 # Generated run artifacts
 output/*
 !output/.gitkeep
+
+# Local tooling, certificates and release builds
+node_modules/
+express-addon/dist/
+express-addon/*.zip
+artifacts/
+.cert/
+*.key
+*.pem

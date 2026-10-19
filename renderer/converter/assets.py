@@ -7,7 +7,10 @@ from PIL import Image, ImageDraw
 def asset_path(assets_dir: Optional[str], asset_id: Optional[str]) -> Optional[Path]:
     if not assets_dir or not asset_id:
         return None
-    candidate = Path(assets_dir) / asset_id
+    root = Path(assets_dir).resolve()
+    candidate = (root / asset_id).resolve()
+    if not candidate.is_relative_to(root):
+        return None
     return candidate if candidate.is_file() else None
 
 
@@ -53,7 +56,7 @@ def _fit_image(image: Image.Image, width: float, height: float, fit: str) -> Ima
         nw, nh = max(1, round(image.width * scale)), max(1, round(image.height * scale))
         resized = image.resize((nw, nh), Image.LANCZOS)
         canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-        canvas.paste(resized, ((w - nw) // 2, (h - nh) // 2), resized)
+        canvas.alpha_composite(resized, dest=((w - nw) // 2, (h - nh) // 2))
         return canvas
     if fit == "cover":
         scale = max(w / image.width, h / image.height)

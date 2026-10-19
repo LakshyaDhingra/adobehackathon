@@ -1,139 +1,77 @@
-"""
-Orchestrator — you shouldn't need to edit this file. It:
-  1. Reads every *.json task file from /app/input (source + target_canvas)
-  2. Calls your resize() from resize.py
-  3. Runs a quick self-check (structural only — NOT the official scoring;
-     see RULES.md for what the judge actually checks)
-  4. Writes <task>_output.json and <task>_output.png to /app/output
+"""Batch scoring entry point: input/*.json -> output/<task>_output.{json,png}."""
+from __future__ import annotations
 
-Mirrors the same input/ -> output/ convention as the earlier India-program
-challenges: drop task files in, get one JSON + one PNG out per task, no
-manual steps in between.
-"""
-
+import argparse
 import json
 import sys
 import time
 from pathlib import Path
 
+from engine.contract import contract_problems, validate_canvas, validate_design
 from engine.resize import resize
 
-# Relative to the current working directory, which is /app both inside the
-# Docker image (WORKDIR /app) and when run locally from this repo's root -
-# so this works identically in both "python -m engine.main" (no Docker) and
-# the containerized entrypoint.
 INPUT_DIR = Path("input")
 OUTPUT_DIR = Path("output")
-ASSETS_DIR = Path("brand_kit/assets")
-
-REQUIRED_COMMON = ["id", "type", "x", "y", "width", "height"]
-REQUIRED_BY_TYPE = {
-    "text": ["content", "font_family", "font_size", "color"],
-    "image": ["asset_id"],
-    "shape": ["shape_type", "fill_color"],
-}
+ASSETS_DIR = Path(__file__).resolve().parent.parent / "brand_kit" / "assets"
 
 
 def self_check(source: dict, output: dict) -> list[str]:
-    """Quick, non-authoritative sanity check so obvious mistakes are caught
-    locally before you submit. This is NOT the official scorer — see
-    RULES.md for what actually gates and grades your submission."""
-    problems = []
-
-    if "canvas" not in output or "elements" not in output:
-        return ["output is missing top-level 'canvas' or 'elements'"]
-
-    src_ids = {el["id"] for el in source["elements"]}
-    out_ids = {el.get("id") for el in output["elements"]}
-    if src_ids != out_ids:
-        problems.append(
-            f"element id mismatch — missing {sorted(src_ids - out_ids)}, "
-            f"unexpected {sorted(out_ids - src_ids)}"
-        )
-
-    cw, ch = output["canvas"].get("width"), output["canvas"].get("height")
-    for el in output["elements"]:
-        for field in REQUIRED_COMMON:
-            if field not in el:
-                problems.append(f"element '{el.get('id')}': missing '{field}'")
-                continue
-        for field in REQUIRED_BY_TYPE.get(el.get("type"), []):
-            if field not in el:
-                problems.append(f"element '{el.get('id')}' (type={el.get('type')}): missing '{field}'")
-        if cw and ch and all(k in el for k in ("x", "y", "width", "height")):
-            x1, y1 = el["x"] + el["width"], el["y"] + el["height"]
-            if el["x"] < -0.5 or el["y"] < -0.5 or x1 > cw + 0.5 or y1 > ch + 0.5:
-                problems.append(f"element '{el.get('id')}' is off-canvas ({cw}x{ch})")
-
-    return problems
+    """Structural contract check, separate from the quality audit and official judge."""
+    return contract_problems(source, output)
 
 
-def render_to_png(design: dict, assets_dir: Path, png_path: Path) -> None:
-    """Renders `design` to a PNG. Prefers the real renderer
-    (transformer-convertor, wrapping cr-renderer) if it's vendored into
-    ./renderer; falls back to a plain box-and-label preview otherwise so
-    this repo is runnable before that's wired in. Swap the fallback out
-    once ./renderer is populated — don't ship the fallback's output as a
-    real preview."""
-    try:
-        from renderer.converter.convert import render_design_to_png  # type: ignore
-        render_design_to_png(design, assets_dir, str(png_path))
-        return
-    except ImportError:
-        pass
-
-    _fallback_render(design, png_path)
+def render_to_png(design: dict, assets_dir: Path, png_path: Path) -> list[str]:
+    """Use the real renderer. A missing renderer fails loudly; no placeholder fallback."""
+    from renderer.converter.convert import render_design_to_png
+    return render_design_to_png(design, assets_dir, str(png_path))
 
 
-def _fallback_render(design: dict, png_path: Path) -> None:
-    """Placeholder only — labeled boxes, not real text/asset rendering.
-    Confirms the pipeline runs end-to-end; do not use this to judge your
-    actual layout quality. Use transformer-convertor (RULES.md / FAQ Q3)
-    for a real preview."""
-    from PIL import Image, ImageDraw
-
-    w, h = design["canvas"]["width"], design["canvas"]["height"]
-    img = Image.new("RGB", (w, h), "#EDE7DD")
-    draw = ImageDraw.Draw(img)
-    palette = {"text": "#2B6CB0", "image": "#B7791F", "shape": "#2F855A"}
-    for el in sorted(design["elements"], key=lambda e: e.get("z_index", 0)):
-        x0, y0 = el["x"], el["y"]
-        x1, y1 = x0 + el["width"], y0 + el["height"]
-        color = palette.get(el["type"], "#555555")
-        draw.rectangle([x0, y0, x1, y1], outline=color, width=3)
-        draw.text((x0 + 4, y0 + 4), el["id"], fill=color)
-    img.save(png_path)
-
-
-def main() -> int:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    task_files = sorted(INPUT_DIR.glob("*.json"))
+def main(input_dir: Path | None = None, output_dir: Path | None = None) -> int:
+    inputs, outputs = input_dir or INPUT_DIR, output_dir or OUTPUT_DIR
+    outputs.mkdir(parents=True, exist_ok=True)
+    task_files = sorted(inputs.glob("*.json"))
     if not task_files:
-        print(f"No task files found in {INPUT_DIR}", file=sys.stderr)
+        print(f"No task files found in {inputs}", file=sys.stderr)
         return 1
-
-    exit_code = 0
+    failed = False
     for task_path in task_files:
-        task = json.loads(task_path.read_text())
-        source, target_canvas = task["source"], task["target_canvas"]
-
-        t0 = time.time()
-        output = resize(source, target_canvas)
-        elapsed = time.time() - t0
-
-        problems = self_check(source, output)
         stem = task_path.stem
-        (OUTPUT_DIR / f"{stem}_output.json").write_text(json.dumps(output, indent=2))
-        render_to_png(output, ASSETS_DIR, OUTPUT_DIR / f"{stem}_output.png")
-
-        status = "OK" if not problems else f"{len(problems)} self-check warning(s)"
-        print(f"[{task_path.name}] {status} in {elapsed:.2f}s "
-              f"-> {stem}_output.json, {stem}_output.png")
-        for p in problems:
-            print(f"    - {p}")
-
-    return exit_code
+        json_path, png_path = outputs / f"{stem}_output.json", outputs / f"{stem}_output.png"
+        temp_json, temp_png = outputs / f".{stem}.json.tmp", outputs / f".{stem}.png.tmp"
+        try:
+            task = json.loads(task_path.read_text())
+            source, target = task["source"], task["target_canvas"]
+            validate_design(source)
+            validate_canvas(target)
+            t0 = time.perf_counter()
+            output = resize(source, target)
+            elapsed = time.perf_counter() - t0
+            problems = contract_problems(source, output, target)
+            if problems:
+                raise ValueError('; '.join(problems))
+            warnings = render_to_png(output, ASSETS_DIR, temp_png)
+            from PIL import Image
+            with Image.open(temp_png) as image:
+                if image.size != (target["width"], target["height"]):
+                    raise ValueError(f"PNG size {image.size} differs from target canvas")
+            temp_json.write_text(json.dumps(output, indent=2, allow_nan=False) + '\n')
+            temp_png.replace(png_path)
+            temp_json.replace(json_path)
+            print(f"[{task_path.name}] OK in {elapsed:.3f}s -> {json_path.name}, {png_path.name}")
+            for warning in warnings:
+                print(f"    render warning: {warning}")
+        except Exception as exc:
+            failed = True
+            # A failed task must never masquerade as an old successful result.
+            for p in (temp_json, temp_png, json_path, png_path):
+                p.unlink(missing_ok=True)
+            print(f"[{task_path.name}] FAILED: {exc}", file=sys.stderr)
+    return int(failed)
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--input-dir', type=Path, default=INPUT_DIR)
+    parser.add_argument('--output-dir', type=Path, default=OUTPUT_DIR)
+    args = parser.parse_args()
+    raise SystemExit(main(args.input_dir, args.output_dir))

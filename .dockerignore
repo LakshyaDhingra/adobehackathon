@@ -1,0 +1,16 @@
+.git
+.venv
+**/__pycache__
+**/*.pyc
+output
+artifacts
+node_modules
+express-addon/node_modules
+studio
+scripts
+tests
+docs
+.DS_Store
+.cert
+**/*.pem
+**/*.key
