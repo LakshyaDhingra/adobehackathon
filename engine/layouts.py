@@ -127,6 +127,16 @@ def role_bounds(ctx: Ctx, role: str) -> Tuple[float, float]:
         f = max(f, float(math.ceil(0.88 * ctx.floor)))
     f = max(2.0, f, ctx.min_font)
     c = max(f, ROLE_CEIL[role] * ctx.short * ctx.ceil_boost)
+    if ctx.short < 360:
+        boosted_c = {
+            "headline": min(38.0, 0.42 * ctx.H * ctx.ceil_boost),
+            "cta": min(20.0, 0.25 * ctx.H * ctx.ceil_boost),
+            "sub": min(18.0, 0.22 * ctx.H * ctx.ceil_boost),
+            "badge": min(16.0, 0.20 * ctx.H * ctx.ceil_boost),
+            "label": min(16.0, 0.20 * ctx.H * ctx.ceil_boost),
+            "legal": min(12.0, 0.15 * ctx.H * ctx.ceil_boost),
+        }.get(role, 14.0)
+        c = max(c, boosted_c)
     return f, c
 
 
@@ -1220,9 +1230,8 @@ def _grow(ctx: Ctx, measure, rh: float, s: float, room: float, hero: float, flex
     cap); the type scale then rises in fine steps while the copy, the hero and
     the breathing room still fit. One scale multiplies every role, so the
     designer's hierarchy ratios are unchanged; role ceilings still apply."""
-    # keep at least GROW_KEEP free, and more for airy sources: never pack the
-    # column much denser than the designer packed the original
-    keep = rh * max(GROW_KEEP, 1.0 - min(0.9, ctx.ad.fill_v + 0.10))
+    # keep at least GROW_KEEP free, but avoid forcing 65%+ empty dead-space on airy designs
+    keep = rh * max(GROW_KEEP, min(0.30, 0.70 * (1.0 - min(0.9, ctx.ad.fill_v + 0.10))))
     if room - hero <= keep:
         return s, hero
     if flex:

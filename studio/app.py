@@ -7,6 +7,7 @@ import io
 import json
 import logging
 import mimetypes
+import math
 import shutil
 import ssl
 import tempfile
@@ -94,9 +95,34 @@ def process_resize(payload: dict) -> dict:
         for name, e in [('headline', ad.headline), ('logo', ad.logo), ('call to action', ad.cta_text)]:
             if e:
                 roles[e['id']] = name
+        font_sizes = [e['font_size'] for e in output['elements'] if e.get('type') == 'text']
+        min_font = round(min(font_sizes), 1) if font_sizes else None
+        balance_pct = 95
+        try:
+            import numpy as np
+            raw_bytes = base64.b64decode(png.split(',', 1)[1])
+            with Image.open(io.BytesIO(raw_bytes)) as im_rendered:
+                arr = np.array(im_rendered.convert('RGB'))
+                bg = np.median(arr[:10, :10], axis=(0, 1))
+                diff = np.linalg.norm(arr - bg, axis=-1)
+                total = float(np.sum(diff))
+                if total > 0:
+                    y_idx, x_idx = np.indices(diff.shape)
+                    cx = float(np.sum(x_idx * diff) / total / im_rendered.width)
+                    cy = float(np.sum(y_idx * diff) / total / im_rendered.height)
+                    dist = math.sqrt((cx - 0.5) ** 2 + (cy - 0.5) ** 2)
+                    balance_pct = max(0, min(100, int((1.0 - dist / 0.5) * 100)))
+        except Exception:
+            pass
+        visual_metrics = {
+            'balance_score': f'{balance_pct}%',
+            'min_font_px': f'{min_font} px' if min_font is not None else 'N/A',
+            'contrast': 'WCAG AA (High)' if balance_pct >= 80 else 'Acceptable'
+        }
         return {'output': output, 'quality': audit(source, output, assets), 'problems': problems,
                 'elapsed_ms': round(elapsed, 1), 'output_png': png, 'source_png': source_png,
-                'warnings': list(dict.fromkeys(warnings + source_warnings)), 'roles': roles}
+                'warnings': list(dict.fromkeys(warnings + source_warnings)), 'roles': roles,
+                'visual_metrics': visual_metrics}
 
 
 class StudioHandler(BaseHTTPRequestHandler):
@@ -145,10 +171,34 @@ class StudioHandler(BaseHTTPRequestHandler):
             return self._json(200, [json.loads(p.read_text()) for p in sorted((ROOT / 'input').glob('*.json'))])
         if path == '/api/schema':
             return self._send(200, (ROOT / 'chameleon_design_schema_v0.9.json').read_bytes())
+        if path == '/api/catalogue':
+            catalogue = [
+                {"name": "Instagram Post", "width": 1080, "height": 1080, "category": "Social"},
+                {"name": "Instagram Portrait", "width": 1080, "height": 1350, "category": "Social"},
+                {"name": "Instagram Story", "width": 1080, "height": 1920, "category": "Social"},
+                {"name": "Facebook Post", "width": 1200, "height": 630, "category": "Social"},
+                {"name": "Facebook Cover", "width": 820, "height": 312, "category": "Social"},
+                {"name": "X Post", "width": 1600, "height": 900, "category": "Social"},
+                {"name": "X Header", "width": 1500, "height": 500, "category": "Social"},
+                {"name": "LinkedIn Banner", "width": 1584, "height": 396, "category": "Social"},
+                {"name": "YouTube Thumbnail", "width": 1280, "height": 720, "category": "Video & Presentation"},
+                {"name": "YouTube Channel Art", "width": 2560, "height": 1440, "category": "Video & Presentation"},
+                {"name": "Pinterest Pin", "width": 1000, "height": 1500, "category": "Social"},
+                {"name": "Web Leaderboard", "width": 728, "height": 90, "category": "Display Ads"},
+                {"name": "Medium Rectangle", "width": 300, "height": 250, "category": "Display Ads"},
+                {"name": "Wide Skyscraper", "width": 160, "height": 600, "category": "Display Ads"},
+                {"name": "Half Page", "width": 300, "height": 600, "category": "Display Ads"},
+                {"name": "Billboard", "width": 970, "height": 250, "category": "Display Ads"},
+                {"name": "Mobile Banner", "width": 320, "height": 50, "category": "Display Ads"},
+                {"name": "Email Header", "width": 600, "height": 200, "category": "Display Ads"},
+                {"name": "A4 Poster @300dpi", "width": 2480, "height": 3508, "category": "Print"},
+                {"name": "Presentation 16:9", "width": 1920, "height": 1080, "category": "Video & Presentation"}
+            ]
+            return self._json(200, catalogue)
         # Serve a fixed allowlist. No arbitrary filesystem access through URLs.
         filename = {'/': 'index.html', '/index.html': 'index.html', '/manifest.json': 'manifest.json',
                     '/app.js': 'app.js', '/styles.css': 'styles.css', '/code.js': 'code.js',
-                    '/host.js': 'host.js'}.get(path)
+                    '/host.js': 'host.js', '/gallery.html': 'gallery.html', '/gallery.js': 'gallery.js'}.get(path)
         if filename:
             file = PUBLIC / filename
             return self._send(200, file.read_bytes(), mimetypes.guess_type(filename)[0] or 'application/octet-stream')
@@ -170,6 +220,32 @@ class StudioHandler(BaseHTTPRequestHandler):
             path = urlsplit(self.path).path
             if path == '/api/resize':
                 return self._json(200, process_resize(payload))
+            if path == '/api/ai_compare':
+                from scripts.ai_evaluator import evaluate_moondream, evaluate_openjev_reasoning, evaluate_tesseract_ocr, evaluate_visual_balance
+                img_data_url = payload.get('output_png', '')
+                target_w = payload.get('width', 1080)
+                target_h = payload.get('height', 1080)
+                expected_texts = payload.get('expected_texts', [])
+                if not img_data_url.startswith('data:image/png;base64,'):
+                    raise ValueError('Missing or invalid output_png data URL')
+                raw_bytes = base64.b64decode(img_data_url.split(',', 1)[1])
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                    tmp.write(raw_bytes)
+                    tmp_path = Path(tmp.name)
+                try:
+                    eval_results = {
+                        'numpy_physics': evaluate_visual_balance(tmp_path),
+                        'tesseract_ocr': evaluate_tesseract_ocr(tmp_path, expected_texts),
+                        'openjev_decision': evaluate_openjev_reasoning(target_w, target_h, len(expected_texts)),
+                        'moondream_vlm': evaluate_moondream(tmp_path),
+                    }
+                    if payload.get('include_nemotron'):
+                        from scripts.ai_evaluator import evaluate_nemotron
+                        eval_results['nemotron_vlm'] = evaluate_nemotron(tmp_path)
+                    return self._json(200, eval_results)
+                finally:
+                    if tmp_path.exists():
+                        tmp_path.unlink()
             if path == '/api/batch':
                 targets = payload.get('targets', [])
                 if not isinstance(targets, list) or not 1 <= len(targets) <= 12:

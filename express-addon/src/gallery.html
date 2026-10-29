@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chameleon · All 20 Formats Gallery</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .gallery-container {
+        max-width: 1720px;
+        margin: 0 auto;
+        padding: 0 4% 60px;
+      }
+      @media (min-width: 2000px) {
+        .gallery-container {
+          max-width: 2200px;
+        }
+      }
+      .gallery-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        background: white;
+        padding: 18px 28px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        margin-bottom: 28px;
+        box-shadow: 0 2px 8px rgba(35, 20, 45, 0.03);
+      }
+      .toolbar-left, .toolbar-right {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      .filter-tabs {
+        display: flex;
+        gap: 6px;
+        background: #f8f6fa;
+        padding: 5px;
+        border-radius: 9px;
+        border: 1px solid var(--line);
+      }
+      .filter-btn {
+        background: transparent;
+        border: none;
+        padding: 8px 14px;
+        font-size: 13px;
+        border-radius: 7px;
+        color: #7a6e82;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.15s ease;
+      }
+      .filter-btn.active {
+        background: white;
+        color: #4b3658;
+        box-shadow: 0 1px 3px rgba(40, 20, 50, 0.1);
+      }
+      .progress-bar-wrap {
+        width: 100%;
+        height: 6px;
+        background: #eeeaf2;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 10px;
+        display: none;
+      }
+      .progress-bar {
+        height: 100%;
+        width: 0%;
+        background: #e86a3a;
+        transition: width 0.2s ease;
+      }
+      .gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 28px;
+      }
+      .format-card {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        box-shadow: 0 2px 8px rgba(40, 20, 50, 0.04);
+      }
+      .format-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(40, 20, 50, 0.09);
+      }
+      .card-header {
+        padding: 14px 18px;
+        border-bottom: 1px solid #f2edf5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #fbfafc;
+      }
+      .card-title-group h3 {
+        font-size: 15px;
+        font-weight: 650;
+        color: #3b2a45;
+        margin: 0;
+      }
+      .card-dim {
+        font-size: 12px;
+        color: #8c7d96;
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+      }
+      .card-badge {
+        font-size: 11px;
+        font-weight: 650;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        padding: 4px 9px;
+        border-radius: 12px;
+        background: #eee8f4;
+        color: #5c436d;
+      }
+      .card-preview-stage {
+        height: 330px;
+        background-color: #f7f5f9;
+        background-image: radial-gradient(#ddd6e4 0.8px, transparent 0.8px);
+        background-size: 14px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 22px;
+        position: relative;
+        overflow: hidden;
+      }
+      .card-preview-img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        box-shadow: 0 8px 24px rgba(40, 20, 50, 0.12);
+        border-radius: 6px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: zoom-in;
+        image-rendering: high-quality;
+        image-rendering: -webkit-optimize-contrast;
+      }
+      .card-preview-img:hover {
+        transform: scale(1.04);
+        box-shadow: 0 14px 32px rgba(40, 20, 50, 0.20);
+      }
+      /* 1:1 Actual Size mode: Natural vertical flow down page */
+      .gallery-grid.actual-size {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 44px;
+        width: 100%;
+        padding-bottom: 40px;
+      }
+      .gallery-grid.actual-size .format-card {
+        width: auto;
+        max-width: 100%;
+        flex: 0 0 auto;
+        overflow: visible;
+        box-shadow: 0 8px 30px rgba(40, 20, 50, 0.08);
+        background: white;
+      }
+      .gallery-grid.actual-size .card-header,
+      .gallery-grid.actual-size .card-footer {
+        width: 100%;
+      }
+      .gallery-grid.actual-size .card-preview-stage {
+        height: auto;
+        min-height: auto;
+        max-height: none;
+        overflow: visible;
+        padding: 24px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #f7f5f9;
+      }
+      .gallery-grid.actual-size .card-preview-img {
+        max-width: none;
+        max-height: none;
+        width: auto;
+        height: auto;
+        object-fit: none;
+        box-shadow: 0 10px 32px rgba(45, 25, 55, 0.16);
+        border-radius: 4px;
+        cursor: zoom-in;
+      }
+      .gallery-grid.actual-size .card-preview-img:hover {
+        transform: none;
+      }
+
+      /* Formats that are too large to render 1:1 fit cleanly within card bounds */
+      .too-large-badge {
+        display: inline-flex;
+        align-items: center;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background: #fff3e6;
+        color: #b3561b;
+        border: 1px solid #ffd8b5;
+        letter-spacing: 0.2px;
+        white-space: nowrap;
+      }
+      .gallery-grid.actual-size .format-card.too-large-card {
+        width: 100%;
+        max-width: min(1200px, 94vw);
+      }
+      .gallery-grid.actual-size .format-card.too-large-card .card-preview-stage {
+        height: auto;
+        max-height: 580px;
+        padding: 24px;
+      }
+      .gallery-grid.actual-size .format-card.too-large-card .card-preview-img {
+        max-width: 100%;
+        max-height: 520px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+      }
+      .btn-actual-size.active {
+        background: #f1ecf7 !important;
+        color: #553b73 !important;
+        border-color: #9d81bf !important;
+        box-shadow: 0 1px 4px rgba(70, 40, 90, 0.15) !important;
+      }
+      .card-footer {
+        padding: 14px 18px;
+        border-top: 1px solid #f2edf5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        background: white;
+      }
+      .card-metrics {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .metric-chip {
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 5px;
+        background: #f2f5ed;
+        color: #4b6a34;
+        font-weight: 600;
+      }
+      .metric-chip.warn {
+        background: #fff3e6;
+        color: #9c602a;
+      }
+      .card-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .card-actions button, .card-actions a {
+        font-size: 12px;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 6px;
+        text-decoration: none;
+      }
+      /* Modal for fullscreen preview */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(25, 15, 30, 0.85);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+      }
+      .modal-backdrop[hidden] {
+        display: none;
+      }
+      .modal-content {
+        max-width: 90vw;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+      }
+      .modal-content img {
+        max-width: 88vw;
+        max-height: 82vh;
+        object-fit: contain;
+        border-radius: 6px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      }
+      .modal-caption {
+        margin-top: 12px;
+        color: white;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .modal-close {
+        position: absolute;
+        top: -40px;
+        right: 0;
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Chameleon home"
+        ><span class="mark" aria-hidden="true">c</span>chameleon<span
+          class="brand-tag"
+          >DESIGN THAT ADAPTS</span
+        ></a
+      >
+      <nav class="top-nav">
+        <a href="index.html" class="nav-link">Single Canvas Studio</a>
+        <a href="gallery.html" class="nav-link active">All 20 Formats Suite ↗</a>
+      </nav>
+      <span class="local-pill"><i></i> On your machine</span>
+    </header>
+
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">THE COMPLETE SUITE</p>
+        <h1>All 20 Formats.<br /><em>One Unified Campaign.</em></h1>
+      </div>
+      <p class="intro">
+        Test and visualize your reflow across all 20 real-world platform formats.<br />
+        Social, Display Ads, Video Headers & High-Res Posters.
+      </p>
+    </div>
+
+    <div class="gallery-container">
+      <div class="gallery-toolbar">
+        <div class="toolbar-left">
+          <label for="taskSelect" style="font-size:13px; font-weight:650; color:#4a3955; margin-bottom: 0;">Source design:</label>
+          <select id="taskSelect" style="max-width: 320px; margin-bottom: 0;"></select>
+          
+          <div class="filter-tabs" id="filterTabs">
+            <button class="filter-btn active" data-cat="all">All (20)</button>
+            <button class="filter-btn" data-cat="Social">Social (9)</button>
+            <button class="filter-btn" data-cat="Display Ads">Display Ads (7)</button>
+            <button class="filter-btn" data-cat="Video & Presentation">Video (3)</button>
+            <button class="filter-btn" data-cat="Print">Print (1)</button>
+          </div>
+        </div>
+
+        <div class="toolbar-right">
+          <button id="toggleActualSizeBtn" class="file-button btn-actual-size" style="font-size:13px; padding:10px 16px; width:auto; border-style:solid; font-weight:600;">
+            🔍 Show 1:1 Actual Size
+          </button>
+          <button id="generateBtn" class="primary" style="font-size:13px; padding:10px 20px; width:auto;">
+            ⚡ Generate All 20 Formats
+          </button>
+          <button id="downloadZipBtn" class="file-button" style="font-size:13px; padding:10px 18px; width:auto;" disabled>
+            Download Campaign ZIP ↓
+          </button>
+        </div>
+
+        <div class="progress-bar-wrap" id="progressWrap">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+      </div>
+
+      <div class="gallery-viewport" id="galleryViewport">
+        <div class="gallery-grid" id="galleryGrid"></div>
+      </div>
+    </div>
+
+    <div id="imageModal" class="modal-backdrop" hidden>
+      <div class="modal-content">
+        <button id="modalClose" class="modal-close" aria-label="Close preview">×</button>
+        <div class="modal-img-wrap" style="overflow:auto; max-width:88vw; max-height:76vh; display:flex; align-items:center; justify-content:center; padding:10px;">
+          <img id="modalImg" alt="Expanded preview" style="transition:transform 0.15s ease; transform-origin:center center;" />
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; width:100%; margin-top:14px; gap:16px;">
+          <div id="modalCaption" class="modal-caption" style="margin-top:0;"></div>
+          <div class="zoom-controls">
+            <button id="modalZoomOut" class="zoom-btn" title="Zoom out">−</button>
+            <span id="modalZoomLevel" class="zoom-level">100%</span>
+            <button id="modalZoomIn" class="zoom-btn" title="Zoom in">+</button>
+            <button id="modalZoomFit" class="zoom-fit-btn" title="Reset zoom">Fit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="page-footer">
+      <span>CHAMELEON / ADOBE UNIVERSITY HACKATHON 2026</span>
+      <span>20 Platform Formats Reflow Suite.</span>
+    </footer>
+
+    <script type="module" src="gallery.js"></script>
+  </body>
+</html>

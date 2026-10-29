@@ -144,8 +144,22 @@ def enforce_hard_constraints(
     out_elements: List[Dict[str, Any]] = []
     for eid in ad.source_order_ids:
         el = ad.all_elements_by_id.get(eid) or clean_element_copy(src_by_id[eid])
-        contain_element(el, src_by_id[eid], W, H)
         out_elements.append(el)
+
+    # Preserve designer's exact authoring when target matches source dimensions
+    same_canvas = (
+        abs(W - float(source.get("canvas", {}).get("width", 0.0))) < 1.0
+        and abs(H - float(source.get("canvas", {}).get("height", 0.0))) < 1.0
+    )
+    if not same_canvas:
+        try:
+            from ai.infer import apply_geometric_nudges
+            out_elements = apply_geometric_nudges(out_elements, W, H, ad=ad)
+        except Exception:
+            pass
+
+    for el in out_elements:
+        contain_element(el, src_by_id[el["id"]], W, H)
     return out_elements
 
 

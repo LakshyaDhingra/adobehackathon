@@ -14,6 +14,10 @@
           >DESIGN THAT ADAPTS</span
         ></a
       >
+      <nav class="top-nav">
+        <a href="index.html" class="nav-link active">Single Canvas Studio</a>
+        <a href="gallery.html" class="nav-link">All 20 Formats Suite ↗</a>
+      </nav>
       <span class="local-pill"><i></i> On your machine</span>
     </header>
     <div class="page-heading">
@@ -112,8 +116,7 @@
             <h2>Ready to use</h2>
           </div>
           <div class="export-row">
-            <button id="pngBtn" disabled>Download PNG</button
-            ><button id="jsonBtn" disabled>Layout JSON</button>
+            <button id="pngBtn" class="primary" style="width:100%;" disabled>Download PNG ↓</button>
           </div>
           <button id="batchBtn" class="wide-button" disabled>
             Export campaign · 4 sizes <span>↓</span>
@@ -158,8 +161,13 @@
               </button>
             </div>
             <div class="view-actions">
-              <span id="canvasLabel">1600 × 400</span
-              ><button id="zoomBtn" title="Toggle actual pixels">Fit</button>
+              <span id="canvasLabel">1600 × 400</span>
+              <div class="zoom-controls">
+                <button id="zoomOutBtn" class="zoom-btn" title="Zoom out" aria-label="Zoom out">−</button>
+                <span id="zoomLevel" class="zoom-level">Fit</span>
+                <button id="zoomInBtn" class="zoom-btn" title="Zoom in" aria-label="Zoom in">+</button>
+                <button id="zoomBtn" class="zoom-fit-btn" title="Reset zoom to fit">Fit</button>
+              </div>
             </div>
           </div>
           <div id="previewStage" class="preview-stage">
@@ -197,19 +205,24 @@
           hidden
         ></div>
         <section id="qualityPanel" class="quality-panel" hidden>
-          <div class="quality-heading">
+          <div class="quality-heading" id="qualityToggle" role="button" tabindex="0" aria-expanded="true" aria-controls="qualityBody" title="Click to collapse / expand details">
             <div>
               <p class="eyebrow">THE DETAILS MATTER</p>
               <h2 id="qualityTitle">Made to fit.</h2>
             </div>
-            <span id="qualityBadge" class="quality-badge"></span>
+            <div class="heading-right">
+              <span id="qualityBadge" class="quality-badge"></span>
+              <span id="qualityChevron" class="quality-chevron" aria-hidden="true">▾</span>
+            </div>
           </div>
-          <div class="checks" id="checks"></div>
-          <div id="issues" class="issues"></div>
-          <p class="audit-note">
-            Local checks assess fit and readability. They are separate from the
-            hackathon’s official judging.
-          </p>
+          <div id="qualityBody" class="quality-body">
+            <div class="checks" id="checks"></div>
+            <div id="issues" class="issues"></div>
+            <p class="audit-note">
+              Local checks assess fit and readability. They are separate from the
+              hackathon’s official judging.
+            </p>
+          </div>
         </section>
       </section>
     </main>

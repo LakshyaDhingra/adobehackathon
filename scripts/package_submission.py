@@ -8,7 +8,7 @@ import zipfile
 ROOT=Path(__file__).resolve().parent.parent
 DEST=ROOT/'artifacts';DEST.mkdir(exist_ok=True)
 INCLUDE=['engine','renderer','brand_kit','input','studio','express-addon/src','tests','scripts','docs','.github',
-         'README.md','FAQ.md','RULES.md','Dockerfile','.dockerignore','.gitignore','requirements.txt','requirements.lock',
+         'ai','README.md','FAQ.md','RULES.md','Dockerfile','.dockerignore','.gitignore','requirements.txt','requirements.lock',
          'chameleon_design_schema_v0.9.json','express-addon/package.json','express-addon/package-lock.json','express-addon/README.md']
 
 

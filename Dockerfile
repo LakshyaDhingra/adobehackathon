@@ -10,5 +10,6 @@ COPY chameleon_design_schema_v0.9.json ./
 COPY brand_kit/ ./brand_kit/
 COPY renderer/ ./renderer/
 COPY engine/ ./engine/
+COPY ai/ ./ai/
 RUN mkdir -p /app/input /app/output
 ENTRYPOINT ["python", "-m", "engine.main"]
