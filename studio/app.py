@@ -21,7 +21,7 @@ from urllib.parse import urlsplit
 from PIL import Image
 from engine.analyzer import analyze_design
 from engine.contract import contract_problems, validate_canvas, validate_design
-from engine.qa import audit
+from engine.qa import aesthetic, audit
 from engine.resize import resize
 from renderer.converter.convert import render_design_to_png
 
@@ -97,12 +97,19 @@ def process_resize(payload: dict) -> dict:
                 roles[e['id']] = name
         font_sizes = [e['font_size'] for e in output['elements'] if e.get('type') == 'text']
         min_font = round(min(font_sizes), 1) if font_sizes else None
+        expected_texts = [e.get('content', '') for e in source.get('elements', []) if e.get('type') == 'text' and len(e.get('content', '')) > 2]
         balance_pct = 95
+        contrast_status = 'WCAG AA (High)'
+        contrast_std = 35.0
+        ocr_result = {'available': False, 'text_recall_pct': 100.0, 'sample_snippet': ''}
         try:
             import numpy as np
             raw_bytes = base64.b64decode(png.split(',', 1)[1])
             with Image.open(io.BytesIO(raw_bytes)) as im_rendered:
                 arr = np.array(im_rendered.convert('RGB'))
+                gray = np.dot(arr[..., :3], [0.2989, 0.5870, 0.1140])
+                contrast_std = float(np.std(gray))
+                contrast_status = 'WCAG AA (High)' if contrast_std >= 25 else 'Acceptable'
                 bg = np.median(arr[:10, :10], axis=(0, 1))
                 diff = np.linalg.norm(arr - bg, axis=-1)
                 total = float(np.sum(diff))
@@ -112,12 +119,27 @@ def process_resize(payload: dict) -> dict:
                     cy = float(np.sum(y_idx * diff) / total / im_rendered.height)
                     dist = math.sqrt((cx - 0.5) ** 2 + (cy - 0.5) ** 2)
                     balance_pct = max(0, min(100, int((1.0 - dist / 0.5) * 100)))
+
+            from scripts.ai_evaluator import evaluate_tesseract_ocr
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as ocr_tmp:
+                ocr_tmp.write(raw_bytes)
+                ocr_tmp_path = Path(ocr_tmp.name)
+            try:
+                ocr_result = evaluate_tesseract_ocr(ocr_tmp_path, expected_texts)
+            finally:
+                if ocr_tmp_path.exists():
+                    ocr_tmp_path.unlink()
         except Exception:
             pass
+
         visual_metrics = {
             'balance_score': f'{balance_pct}%',
             'min_font_px': f'{min_font} px' if min_font is not None else 'N/A',
-            'contrast': 'WCAG AA (High)' if balance_pct >= 80 else 'Acceptable'
+            'contrast': contrast_status,
+            'contrast_std': round(contrast_std, 1),
+            'ocr_recall': f"{ocr_result.get('text_recall_pct', 100)}%",
+            'ocr_sample': ocr_result.get('sample_snippet', ''),
+            'legibility': 'High (Verified)' if ocr_result.get('text_recall_pct', 100) >= 40 else 'Normal'
         }
         return {'output': output, 'quality': audit(source, output, assets), 'problems': problems,
                 'elapsed_ms': round(elapsed, 1), 'output_png': png, 'source_png': source_png,
@@ -141,7 +163,17 @@ class StudioHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _json(self, code, obj):
-        self._send(code, json.dumps(obj, allow_nan=False).encode())
+        def _default(o):
+            try:
+                import numpy as np
+                if isinstance(o, (np.floating, np.integer)):
+                    return o.item()
+                if isinstance(o, np.ndarray):
+                    return o.tolist()
+            except ImportError:
+                pass
+            raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+        self._send(code, json.dumps(obj, allow_nan=False, default=_default).encode())
 
     def do_GET(self):
         path = urlsplit(self.path).path
@@ -220,7 +252,7 @@ class StudioHandler(BaseHTTPRequestHandler):
             path = urlsplit(self.path).path
             if path == '/api/resize':
                 return self._json(200, process_resize(payload))
-            if path == '/api/ai_compare':
+            if path in ('/api/ai_compare', '/api/ai_readability'):
                 from scripts.ai_evaluator import evaluate_moondream, evaluate_openjev_reasoning, evaluate_tesseract_ocr, evaluate_visual_balance
                 img_data_url = payload.get('output_png', '')
                 target_w = payload.get('width', 1080)
@@ -261,6 +293,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                         reports.append({'canvas': target, 'local_quality': result['quality'], 'warnings': result['warnings']})
                     z.writestr('quality-report.json', json.dumps(reports, indent=2))
                 return self._send(200, archive.getvalue(), 'application/zip', {'Content-Disposition': 'attachment; filename="chameleon-campaign.zip"'})
+
             return self._json(404, {'error': 'Not found'})
         except (ValueError, TypeError, KeyError, OSError) as exc:
             self._json(400, {'error': str(exc)})

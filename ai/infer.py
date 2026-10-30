@@ -58,6 +58,7 @@ def apply_geometric_nudges(
     - Hard bounds: offsets are clamped to stay inside [0, W] x [0, H].
     - Zero regression: if neural nudge fails or degrades spacing, falls back safely.
     """
+    original_elements = copy.deepcopy(elements)
     model = get_model(weights_path)
     if model is None:
         return elements
@@ -109,26 +110,37 @@ def apply_geometric_nudges(
                 el["y"] = round(y, 2)
 
         # Optical text centering refinement:
-        # Gently balance centered headlines/subheads towards optical canvas center
-        centered_texts = [
-            el for el in elements
-            if el.get("id") in el_deltas
-            and (el.get("type") == "text" or "headline" in str(el.get("role", "")).lower() or "subhead" in str(el.get("role", "")).lower())
-            and el.get("text_align", "center") == "center"
-        ]
-        for tel in centered_texts:
-            tw = float(tel.get("width", 1.0))
-            tx = float(tel.get("x", 0.0))
-            tcx = tx + tw / 2.0
-            # If within 15% of horizontal canvas center, gently nudge towards optical center
-            if abs(tcx - W / 2.0) < 0.15 * W:
-                target_x = max(0.0, min(W - tw, W / 2.0 - tw / 2.0))
-                tel["x"] = round(tx * 0.5 + target_x * 0.5, 2)
+        # Only in vertical/square layouts (W/H < 1.35) where headline is not split-column
+        if W / max(1.0, H) < 1.35:
+            centered_texts = [
+                el for el in elements
+                if el.get("id") in el_deltas
+                and (el.get("type") == "text" or "headline" in str(el.get("role", "")).lower() or "subhead" in str(el.get("role", "")).lower())
+                and el.get("text_align", "center") == "center"
+            ]
+            for tel in centered_texts:
+                tw = float(tel.get("width", 1.0))
+                tx = float(tel.get("x", 0.0))
+                tcx = tx + tw / 2.0
+                if abs(tcx - W / 2.0) < 0.15 * W:
+                    target_x = max(0.0, min(W - tw, W / 2.0 - tw / 2.0))
+                    tel["x"] = round(tx * 0.5 + target_x * 0.5, 2)
 
-        print(f"[AI Neural Nudger] Adjusted {len(el_deltas)} elements (applied learned breathing room, margins & optical centering)")
+        # Zero-regression check: ensure nudges never introduce collisions or increase audit penalty
+        try:
+            from engine.qa import audit
+            canv = {"width": W, "height": H}
+            cand_rep = audit({"canvas": canv, "elements": elements}, {"canvas": canv, "elements": elements})
+            orig_rep = audit({"canvas": canv, "elements": original_elements}, {"canvas": canv, "elements": original_elements})
+            if (cand_rep.get("collisions") and not orig_rep.get("collisions")) or cand_rep.get("penalty", 0) > orig_rep.get("penalty", 0):
+                return original_elements
+        except Exception:
+            pass
+
         log.info("[AI Neural Nudger] Adjusted %d elements", len(el_deltas))
 
     except Exception as e:
         log.warning("Neural geometric nudge failed: %s; keeping baseline layout.", e)
+        return original_elements
 
     return elements

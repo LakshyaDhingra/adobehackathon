@@ -974,3 +974,129 @@ h1 em {
     padding: 12px 15px;
   }
 }
+
+/* AI Vision Ingestion & Readability Card */
+.ai-readability-card {
+  margin-top: 18px;
+  padding: 16px;
+  background: linear-gradient(135deg, #ffffff 0%, #faf8fc 100%);
+  border: 1px solid #e5dcf0;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(103, 72, 163, 0.05);
+}
+
+.ai-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ai-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-card-title h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ai-pill {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  background: rgba(103, 72, 163, 0.12);
+  color: var(--purple);
+  border-radius: 20px;
+}
+
+.ai-scan-btn {
+  background: var(--purple);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ai-scan-btn:hover:not(:disabled) {
+  background: #55398b;
+  transform: translateY(-1px);
+}
+
+.ai-scan-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.ai-metrics-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ai-metric-item {
+  background: #fff;
+  border: 1px solid #eee8f4;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-metric-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.ai-metric-item strong {
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.ai-verdict-box {
+  background: #f7f4fb;
+  border-left: 3px solid var(--purple);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+  margin-top: 10px;
+}
+
+.ai-verdict-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.ai-latency-pill {
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 6px;
+  border-radius: 10px;
+  color: var(--muted);
+}
+
+.ai-verdict-text {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #3b2d41;
+}
+

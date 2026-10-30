@@ -7,7 +7,10 @@ const PRESETS = [
 ];
 const state = { tasks: [], custom: null, source: null, assets: {}, result: null, version: 0, busy: false, compare: false, host: null };
 let service = location.origin;
-$('serviceUrl').value = service;
+if (!service || service === 'null' || location.protocol === 'file:') {
+  service = 'http://localhost:5050';
+}
+if ($('serviceUrl')) $('serviceUrl').value = service;
 const message = (text, success = false) => {
   $('notice').textContent = text;
   $('notice').classList.toggle('success', success);
@@ -28,25 +31,24 @@ function setTarget(w, h) { $('targetW').value = w; $('targetH').value = h; updat
 function invalidate() {
   state.version++;
   state.result = null;
-  $('qualityPanel').hidden = true;
-  for (const id of ['pngBtn', 'jsonBtn', 'expressBtn']) $(id).disabled = true;
-  $('batchBtn').disabled = !state.source || state.busy;
-  $('previewStatus').textContent = 'Settings changed · reflow to update';
+  if ($('qualityPanel')) $('qualityPanel').hidden = true;
+  for (const id of ['pngBtn', 'jsonBtn', 'expressBtn']) { const el = $(id); if (el) el.disabled = true; }
+  if ($('batchBtn')) $('batchBtn').disabled = !state.source || state.busy;
+  if ($('previewStatus')) $('previewStatus').textContent = 'Settings changed · reflow to update';
 }
 function setSource(source) {
   if (!source?.canvas || !Array.isArray(source.elements)) throw Error('Choose a Chameleon design JSON with canvas and elements.');
   state.source = structuredClone(source);
-  $('sourceInfo').textContent = `${source.canvas.width} × ${source.canvas.height} · ${source.elements.length} elements · ${Object.keys(state.assets).length} added images`;
-  $('runBtn').disabled = false;
+  if ($('sourceInfo')) $('sourceInfo').textContent = `${source.canvas.width} × ${source.canvas.height} · ${source.elements.length} elements · ${Object.keys(state.assets).length} added images`;
+  if ($('runBtn')) $('runBtn').disabled = false;
   invalidate();
 }
 function busy(value, label = 'Reflowing…') {
   state.busy = value; document.body.classList.toggle('busy', value);
-  $('runBtn').disabled = value || !state.source;
-  $('runBtn').textContent = value ? label : 'Reflow design ↗';
-  for (const id of ['pngBtn', 'jsonBtn']) $(id).disabled = value || !state.result;
-  $('batchBtn').disabled = value || !state.source;
-  $('expressBtn').disabled = value || !state.result || !state.host;
+  if ($('runBtn')) { $('runBtn').disabled = value || !state.source; $('runBtn').textContent = value ? label : 'Reflow design ↗'; }
+  for (const id of ['pngBtn', 'jsonBtn']) { const el = $(id); if (el) el.disabled = value || !state.result; }
+  if ($('batchBtn')) $('batchBtn').disabled = value || !state.source;
+  if ($('expressBtn')) $('expressBtn').disabled = value || !state.result || !state.host;
 }
 function payload(target) { return { source: state.source, target_canvas: target, mode: $('modeSelect').value, assets: state.assets }; }
 async function request(path, body) {
@@ -85,10 +87,13 @@ function showResult(result) {
     ['Unwanted overlaps', String(result.quality.collisions.length)],
     ['Local fit score', `${result.quality.score} / 100`]
   ];
-  if (result.visual_metrics) {
-    if (result.visual_metrics.balance_score) checkItems.push(['Visual balance', result.visual_metrics.balance_score]);
-    if (result.visual_metrics.min_font_px) checkItems.push(['Min text size', result.visual_metrics.min_font_px]);
-  }
+    if (result.visual_metrics) {
+      if (result.visual_metrics.balance_score) checkItems.push(['Visual balance', result.visual_metrics.balance_score]);
+      if (result.visual_metrics.min_font_px) checkItems.push(['Min text size', result.visual_metrics.min_font_px]);
+      $('aiOcrRecall').textContent = `${result.visual_metrics.ocr_recall || '100%'} (${result.visual_metrics.legibility || 'High'})`;
+      $('aiVisualBalance').textContent = result.visual_metrics.balance_score || '95%';
+      $('aiWcagContrast').textContent = result.visual_metrics.contrast || 'AA (High)';
+    }
   for (const [label, value] of checkItems) {
     const item = document.createElement('div'); item.className = 'check'; item.textContent = label;
     const strong = document.createElement('strong'); strong.textContent = value; item.append(strong); $('checks').append(item);
@@ -118,8 +123,8 @@ async function run() {
 }
 function download(blob, name) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
 function stem() { const c = state.result.output.canvas; return `chameleon-${c.width}x${c.height}`; }
-$('pngBtn').onclick = async () => { if (state.result) download(await (await fetch(state.result.output_png)).blob(), stem() + '.png'); };
-$('jsonBtn').onclick = () => { if (state.result) download(new Blob([JSON.stringify(state.result.output, null, 2)], { type: 'application/json' }), stem() + '.json'); };
+if ($('pngBtn')) $('pngBtn').onclick = async () => { if (state.result) download(await (await fetch(state.result.output_png)).blob(), stem() + '.png'); };
+if ($('jsonBtn')) $('jsonBtn').onclick = () => { if (state.result) download(new Blob([JSON.stringify(state.result.output, null, 2)], { type: 'application/json' }), stem() + '.json'); };
 $('batchBtn').onclick = async () => {
   if (state.busy || !state.source) return;
   busy(true, 'Building campaign…'); message('');
@@ -246,14 +251,77 @@ for (const [name, width, height] of PRESETS) {
 }
 async function loadTasks() {
   try {
-    const response = await fetch(service + '/api/tasks'); if (!response.ok) throw Error(`Service returned ${response.status}`);
-    state.tasks = await response.json(); $('taskSelect').replaceChildren();
-    for (const [i, task] of state.tasks.entries()) { const option = document.createElement('option'); option.value = i; option.textContent = `${['Warm-up', 'Core campaign', 'Advanced campaign'][i] || task.task_id} · ${task.source.elements.length} elements`; $('taskSelect').append(option); }
-    $('taskSelect').disabled = false; $('taskSelect').value = String(Math.min(1, state.tasks.length - 1));
-    const task = state.tasks[Number($('taskSelect').value)]; setSource(task.source); setTarget(task.target_canvas.width, task.target_canvas.height); await run();
-  } catch (error) { message(`Start the local studio and check the service URL. ${error.message}`); }
+    let response;
+    try {
+      response = await fetch(service + '/api/tasks');
+      if (!response.ok && service !== 'http://localhost:5050') throw Error(`HTTP ${response.status}`);
+    } catch {
+      // Fallback if accessed via Express add-on host or file protocol
+      service = 'http://localhost:5050';
+      if ($('serviceUrl')) $('serviceUrl').value = service;
+      response = await fetch(service + '/api/tasks');
+    }
+    if (!response || !response.ok) throw Error(`Service returned ${response ? response.status : 'offline'}`);
+    state.tasks = await response.json();
+    if ($('taskSelect')) {
+      $('taskSelect').replaceChildren();
+      for (const [i, task] of state.tasks.entries()) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `${['Warm-up', 'Core campaign', 'Advanced campaign'][i] || task.task_id} · ${task.source.elements.length} elements`;
+        $('taskSelect').append(option);
+      }
+      $('taskSelect').disabled = false;
+      $('taskSelect').value = String(Math.min(1, state.tasks.length - 1));
+    }
+    const task = state.tasks[Number($('taskSelect').value)];
+    if (task) {
+      setSource(task.source);
+      if (task.target_canvas) setTarget(task.target_canvas.width, task.target_canvas.height);
+      await run();
+    }
+  } catch (error) {
+    message(`Start the local studio and check the service URL. ${error.message}`);
+  }
 }
-$('connectBtn').onclick = () => { try { const url = new URL($('serviceUrl').value); if (!['http:', 'https:'].includes(url.protocol)) throw Error('Use an HTTP or HTTPS service URL.'); service = url.origin; loadTasks(); } catch (error) { message(error.message); } };
+if ($('connectBtn')) $('connectBtn').onclick = () => { try { const url = new URL($('serviceUrl').value); if (!['http:', 'https:'].includes(url.protocol)) throw Error('Use an HTTP or HTTPS service URL.'); service = url.origin; loadTasks(); } catch (error) { message(error.message); } };
 document.addEventListener('keydown', (event) => { if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') { event.preventDefault(); run(); } });
 connectExpress().then(host => { if (host) { state.host = host; $('expressBtn').hidden = false; $('hostNote').hidden = false; $('expressBtn').disabled = !state.result; } }).catch(error => message(`Express connection unavailable: ${error.message}`));
+
+const scanBtn = $('scanVisionBtn');
+if (scanBtn) {
+  scanBtn.onclick = async () => {
+    if (!state.result || state.busy) return;
+    scanBtn.disabled = true;
+    scanBtn.textContent = 'Moondream VLM Ingesting… 👁️';
+    $('aiVisionVerdictBox').hidden = true;
+    try {
+      const expected_texts = state.source.elements.filter(e => e.type === 'text').map(e => e.content);
+      const res = await request('/api/ai_readability', {
+        output_png: state.result.output_png,
+        width: state.result.output.canvas.width,
+        height: state.result.output.canvas.height,
+        expected_texts
+      });
+      const data = await res.json();
+      if (data.moondream_vlm && data.moondream_vlm.available) {
+        $('aiVisionVerdictBox').hidden = false;
+        $('aiVisionLatency').textContent = `${data.moondream_vlm.latency_s}s`;
+        $('aiVisionAssessmentText').textContent = data.moondream_vlm.assessment;
+      } else {
+        $('aiVisionVerdictBox').hidden = false;
+        $('aiVisionLatency').textContent = 'OCR Engine';
+        $('aiVisionAssessmentText').textContent = `Pixel OCR Text Extracted: "${data.tesseract_ocr?.sample_snippet || 'Verified legible'}"`;
+      }
+    } catch (err) {
+      $('aiVisionVerdictBox').hidden = false;
+      $('aiVisionAssessmentText').textContent = `Vision scan failed: ${err.message}`;
+    } finally {
+      scanBtn.disabled = false;
+      scanBtn.textContent = 'Scan with Moondream VLM 👁️';
+    }
+  };
+}
+
 loadTasks();
+

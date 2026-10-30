@@ -74,9 +74,9 @@ def _reflow_topologies(W: float, H: float) -> List[str]:
     ar = W / max(1.0, H)
     # Small canvases also try variants that hold every text at a 7px minimum.
     small = W * H < 200_000 or min(W, H) < 260
-    if ar >= 4.2 or H < 210:
+    if ar >= 3.0 or H < 210:
         return ["banner", "split", "compact", "compact-wide-copy"]
-    if ar >= 2.6:
+    if ar >= 2.0:
         return ["split", "banner"] + (["compact", "compact-wide-copy"] if small else [])
     if ar >= 1.35:
         return ["split", "vertical"] + (["vertical-dense", "compact"] if small else [])

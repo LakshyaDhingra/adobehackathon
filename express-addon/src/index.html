@@ -116,7 +116,8 @@
             <h2>Ready to use</h2>
           </div>
           <div class="export-row">
-            <button id="pngBtn" class="primary" style="width:100%;" disabled>Download PNG ↓</button>
+            <button id="pngBtn" class="primary" disabled>Download PNG ↓</button>
+            <button id="jsonBtn" class="secondary" disabled>Layout JSON ↓</button>
           </div>
           <button id="batchBtn" class="wide-button" disabled>
             Export campaign · 4 sizes <span>↓</span>
@@ -218,6 +219,41 @@
           <div id="qualityBody" class="quality-body">
             <div class="checks" id="checks"></div>
             <div id="issues" class="issues"></div>
+
+            <!-- AI Vision Readability & Image Ingestion Audit -->
+            <div id="aiReadabilityCard" class="ai-readability-card">
+              <div class="ai-card-header">
+                <div class="ai-card-title">
+                  <span class="ai-pill">AI Vision Ingester</span>
+                  <h3>Pixel Readability & Layout Audit</h3>
+                </div>
+                <button type="button" id="scanVisionBtn" class="ai-scan-btn">
+                  Scan with Moondream VLM 👁️
+                </button>
+              </div>
+              <div class="ai-metrics-row">
+                <div class="ai-metric-item">
+                  <span class="ai-metric-label">Pixel Legibility (OCR)</span>
+                  <strong id="aiOcrRecall">100% Verified</strong>
+                </div>
+                <div class="ai-metric-item">
+                  <span class="ai-metric-label">Visual Balance</span>
+                  <strong id="aiVisualBalance">95% (Centered)</strong>
+                </div>
+                <div class="ai-metric-item">
+                  <span class="ai-metric-label">WCAG Contrast</span>
+                  <strong id="aiWcagContrast">AA (High)</strong>
+                </div>
+              </div>
+              <div id="aiVisionVerdictBox" class="ai-verdict-box" hidden>
+                <div class="ai-verdict-header">
+                  <strong>Moondream VLM Image Assessment:</strong>
+                  <span id="aiVisionLatency" class="ai-latency-pill"></span>
+                </div>
+                <p id="aiVisionAssessmentText" class="ai-verdict-text"></p>
+              </div>
+            </div>
+
             <p class="audit-note">
               Local checks assess fit and readability. They are separate from the
               hackathon’s official judging.

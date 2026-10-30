@@ -29,3 +29,6 @@ artifacts/
 .cert/
 *.key
 *.pem
+
+# Generated codebase graph
+graphify-out/

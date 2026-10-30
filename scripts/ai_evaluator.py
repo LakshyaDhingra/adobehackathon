@@ -32,7 +32,11 @@ def evaluate_moondream(image_path: Path) -> dict:
     with open(image_path, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode("utf-8")
 
-    prompt = "What text and visual elements are in this banner image?"
+    prompt = (
+        "Evaluate this banner image layout and typography: "
+        "What text is visible? Is the text clearly legible and formatted well against the background? "
+        "Describe the visual layout and balance in 1-2 concise sentences."
+    )
 
     try:
         req = urllib.request.Request(
