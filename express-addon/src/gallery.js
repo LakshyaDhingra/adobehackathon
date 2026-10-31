@@ -320,9 +320,9 @@ function openModal(data, fmt) {
   if (data.visual_metrics) {
     const chips = [
       `Fit Score: ${data.quality?.score ?? 100}/100`,
-      `Visual Balance: ${data.visual_metrics.balance_score || '95%'}`,
-      `Contrast: ${data.visual_metrics.contrast || 'WCAG AA'}`,
-      `OCR Recall: ${data.visual_metrics.ocr_recall || '100%'}`,
+      `Visual Balance: ${data.visual_metrics.balance_score || 'Not measured'}`,
+      `Image variation: ${data.visual_metrics.contrast || 'Not measured'}`,
+      `OCR word recall: ${data.visual_metrics.ocr_recall || 'Not measured'}`,
       `Min Font: ${data.visual_metrics.min_font_px || 'N/A'}`
     ];
     chips.forEach(c => {
@@ -360,11 +360,15 @@ function openModal(data, fmt) {
       const resData = await res.json();
       verdict.hidden = false;
       if (resData.moondream_vlm && resData.moondream_vlm.available) {
-        $('modalAiStatus').textContent = `Verified in ${resData.moondream_vlm.latency_s}s`;
+        $('modalAiStatus').textContent = `Assessed in ${resData.moondream_vlm.latency_s}s`;
         verdict.textContent = `Moondream VLM Assessment: ${resData.moondream_vlm.assessment}`;
+      } else if (resData.tesseract_ocr?.available) {
+        $('modalAiStatus').textContent = 'OCR measured';
+        const recall = resData.tesseract_ocr.text_recall_pct;
+        verdict.textContent = `Pixel OCR Text Extracted: "${resData.tesseract_ocr.sample_snippet || 'No text detected'}" (${recall == null ? 'recall not measured' : `${recall}% word recall`})`;
       } else {
-        $('modalAiStatus').textContent = 'Native OCR Verified';
-        verdict.textContent = `Pixel OCR Text Extracted: "${resData.tesseract_ocr?.sample_snippet || 'Verified legible'}" (${resData.tesseract_ocr?.text_recall_pct ?? 100}% recall)`;
+        $('modalAiStatus').textContent = 'Unavailable';
+        verdict.textContent = 'Vision model and OCR are unavailable. Pixel readability has not been verified.';
       }
     } catch (err) {
       verdict.hidden = false;

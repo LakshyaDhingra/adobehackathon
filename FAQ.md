@@ -8,9 +8,11 @@ had older viewer and renderer instructions that conflicted with that brief.
 
 The engine code, Dockerfile, dependencies and a short approach/run README.
 The engine must run offline in its container, consume `input/*.json` tasks,
-and emit a JSON layout and real rendered PNG per task. The submission form
-and code-freeze deadline must be confirmed from the organizers' announcement;
-they are not specified in the supplied brief.
+and emit a JSON layout and real rendered PNG per task. The supplied submission
+instructions require the GitHub repository link and registered team details
+through the organizer's form, with no separate file upload. The October 22 recap
+sets the deadline to October 30, 2026; no cutoff time/zone is stated. Submit
+`main`; see `docs/SUBMISSION.md`.
 
 ## Is an Adobe Express add-on required for stage one?
 

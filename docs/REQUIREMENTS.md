@@ -15,11 +15,11 @@ acceptance checks that require the organizer or an Adobe account.
 | Readability and nothing cut off (§2.5) | Text fit checks and a final post-containment refit; small-text warnings retained | All three samples have no local quality flags; arbitrary cramped designs remain a quality limit |
 | Offline container (§4, §7.1) | Pinned renderer/dependencies and bundled fonts/assets | `linux/amd64` tested with `--network none` and read-only root filesystem |
 | Generalization beyond specific examples (§4) | No sample-id branching; seeded generated designs over 20 formats | Reproducible sweep in `scripts/verify_submission.py` |
-| Public adapted model weights (§7.2) | No model is used | Not applicable |
+| Accessible model weights (§7.2 and October 22 recap) | Small NumPy nudger trained from scratch; code and `ai/weights/geometric_nudger.npz` committed and copied into Docker | Included; no external adapter or runtime model download |
 | Stage-one engine, Dockerfile, short README (§5.1) | Source files and explicit source-bundle packager | Included |
 | Finale Express add-on (§3.3, §5.1) | Manifest-v2 panel, Document SDK sandbox, exact-size new-page PNG insertion | Official CLI build and sandbox tests pass; **live host acceptance pending** |
 | Finale short pitch (§5.1) | `docs/PITCH.md` | Included |
-| Finale brief demo video (§5.1) | `artifacts/chameleon-demo.mp4`, generated from actual engine outputs | Included; rendered walkthrough, not live Express footage |
+| Finale brief demo video (§5.1) | `scripts/make_demo.py` generates `artifacts/chameleon-demo.mp4` from actual engine outputs | Generated locally; not tracked in Git; rendered walkthrough, not live Express footage |
 
 ## Reproducible evidence
 
@@ -63,9 +63,11 @@ The image also supports a native `linux/arm64` build.
 2. **Product scope:** the panel consumes Chameleon JSON plus images and inserts
    a single rendered PNG. It does not currently read and rewrite arbitrary
    native Express layers. Downloaded JSON retains the element-level layout.
-3. **Organizer logistics:** verify code freeze, submission destination and any
-   later hardware/model clarification from the organizers. The supplied brief
-   leaves those particulars open; this repository cannot establish them.
+3. **Organizer logistics:** the October 22 recap gives **October 30, 2026** as
+   the final submission deadline. The supplied submission instructions require
+   the GitHub repo link and registered team details through the submission form,
+   with no separate file upload. The supplied materials do not state a cutoff
+   time/zone. See `docs/SUBMISSION.md`; later rule clarifications still apply.
 4. **Finale video expectation:** if the jury expects Adobe Express footage,
    record the live host acceptance sequence in `docs/DEMO.md` and replace or
    supplement the generated engine walkthrough.

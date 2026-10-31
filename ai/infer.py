@@ -19,23 +19,24 @@ log = logging.getLogger(__name__)
 
 _DEFAULT_WEIGHTS = Path(__file__).resolve().parent / "weights" / "geometric_nudger.npz"
 _CACHED_MODEL: Optional[GeometricNudgerModel] = None
+_CACHED_MODEL_PATH: Optional[Path] = None
 
 
 def get_model(weights_path: Optional[Path | str] = None) -> Optional[GeometricNudgerModel]:
     """Return cached singleton model instance if weights exist."""
-    global _CACHED_MODEL
-    if _CACHED_MODEL is not None:
-        return _CACHED_MODEL
-
-    path = Path(weights_path) if weights_path else _DEFAULT_WEIGHTS
+    global _CACHED_MODEL, _CACHED_MODEL_PATH
+    path = (Path(weights_path) if weights_path is not None else _DEFAULT_WEIGHTS).resolve()
     if not path.is_file():
         log.debug("Geometric nudger weights not found at %s; skipping neural nudge.", path)
         return None
+    if _CACHED_MODEL is not None and _CACHED_MODEL_PATH == path:
+        return _CACHED_MODEL
 
     try:
         model = GeometricNudgerModel()
         model.load(path)
         _CACHED_MODEL = model
+        _CACHED_MODEL_PATH = path
         return _CACHED_MODEL
     except Exception as e:
         log.warning("Failed to load neural nudger weights: %s", e)

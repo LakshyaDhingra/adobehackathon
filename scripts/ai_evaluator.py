@@ -5,8 +5,8 @@ Compares:
   1. Moondream VLM (1.7 GB, Vision) - Ultra-fast (300ms) pixel aesthetic & element audit
   2. NVIDIA Nemotron 3.5 Bolt (6.0 GB, Vision) - Deep pixel text reading & legibility audit
   3. OpenJev 1.7B (1.1 GB GGUF, Decision Reasoning) - System-One layout topology candidate ranking
-  4. Tesseract OCR (0 GB VRAM, C++ Native) - Exact pixel word recall & OCR verification
-  5. NumPy Center-of-Mass & Contrast (Deterministic) - 2D visual physics & WCAG balance
+  4. Tesseract OCR - Pixel word recall (when installed)
+  5. NumPy Center-of-Mass & Contrast - Image-wide diagnostic metrics, not WCAG checks
 """
 
 from __future__ import annotations
@@ -15,6 +15,8 @@ import argparse
 import base64
 import json
 import math
+import re
+from collections import Counter
 import subprocess
 import time
 import urllib.error
@@ -166,18 +168,17 @@ def evaluate_tesseract_ocr(image_path: Path, expected_texts: list[str]) -> dict:
             ["tesseract", str(image_path), "stdout", "--psm", "6"],
             capture_output=True,
             text=True,
-            check=False
+            check=False,
+            timeout=15,
         )
         elapsed = time.perf_counter() - t0
-        extracted = proc.stdout.lower()
-
-        found_count = 0
-        for exp in expected_texts:
-            words = [w.lower() for w in exp.split() if len(w) > 3]
-            if words and any(w in extracted for w in words):
-                found_count += 1
-
-        recall = round((found_count / max(1, len(expected_texts))) * 100, 1)
+        if proc.returncode:
+            return {'available': False, 'error': 'Tesseract failed to read the image',
+                    'latency_s': round(elapsed, 3)}
+        expected = Counter(re.findall(r'\w+', ' '.join(expected_texts).casefold()))
+        extracted = Counter(re.findall(r'\w+', proc.stdout.casefold()))
+        expected_count = sum(expected.values())
+        recall = round(sum((expected & extracted).values()) / expected_count * 100, 1) if expected_count else None
         return {
             "available": True,
             "model": "Tesseract OCR (C++ Native)",
@@ -186,8 +187,8 @@ def evaluate_tesseract_ocr(image_path: Path, expected_texts: list[str]) -> dict:
             "text_recall_pct": recall,
             "sample_snippet": proc.stdout.strip().replace("\n", " ")[:90] + "..."
         }
-    except FileNotFoundError:
-        return {"available": False, "error": "tesseract binary not found"}
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"available": False, "error": f"Tesseract unavailable: {exc}"}
 
 
 def evaluate_visual_balance(image_path: Path) -> dict:
@@ -220,7 +221,7 @@ def evaluate_visual_balance(image_path: Path) -> dict:
         "visual_center": (round(cx, 2), round(cy, 2)),
         "balance_score_pct": balance_pct,
         "contrast_std": round(std_contrast, 1),
-        "wcag_status": "AA (High)" if std_contrast >= 25 else "Low"
+        "contrast_status": "High image variation" if std_contrast >= 25 else "Low image variation"
     }
 
 
@@ -278,7 +279,7 @@ def main():
 
         # 1. NumPy Physics
         p = data["numpy_physics"]
-        print(f" [1] NumPy Center-of-Mass  │ Latency: {p['latency_s']}s │ Balance: {p['balance_score_pct']}% │ Contrast: {p['wcag_status']}")
+        print(f" [1] NumPy Center-of-Mass  │ Latency: {p['latency_s']}s │ Balance: {p['balance_score_pct']}% │ Image variation: {p['contrast_status']}")
 
         # 2. Tesseract OCR
         t = data["tesseract_ocr"]

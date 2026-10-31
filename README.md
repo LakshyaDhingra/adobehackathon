@@ -5,6 +5,11 @@ Hackathon. Give it a source design and a target canvas; it returns the same
 elements with new geometry and font sizes. The studio adds comparisons,
 layout choices, custom JSON/image imports, and campaign exports.
 
+**Stage-one submission:** [GitHub repository](https://github.com/LakshyaDhingra/adobehackathon),
+branch **`main`**. The submission form requires this link and the team's registered
+details; no separate file upload is required. See
+[`docs/SUBMISSION.md`](docs/SUBMISSION.md) for the submission checklist.
+
 ## Run the engine
 
 Use Python **3.12+**, preferably in a fresh virtual environment:
@@ -57,8 +62,25 @@ docker run --rm --platform linux/amd64 --network none \
 
 All dependencies are installed during the build. The renderer Git revision
 and Python dependency versions are pinned in `requirements.lock`; fonts and
-assets are included. No model, model downloads, inference service or network
-connection is required at runtime.
+assets are included. A small NumPy model and its weights are also bundled in
+`ai/`; no model download, inference service or network connection is required
+by the scoring engine at runtime.
+
+## Model and optional evaluation tools
+
+The engine includes a **5,890-parameter geometric nudger**, trained from scratch
+to suggest small position adjustments after the rule-based layout. Its weights
+are committed at [`ai/weights/geometric_nudger.npz`](ai/weights/geometric_nudger.npz)
+(24,695 bytes), and the Dockerfile copies them into the image. It uses NumPy,
+already included in the locked dependencies, and never generates image pixels.
+Missing/unloadable weights fall back to the geometric layout. See
+[`ai/README.md`](ai/README.md) for architecture, training code and limitations.
+
+The optional studio evaluation tools can use an installed Tesseract binary and
+separately installed models served by Ollama on localhost. Those models are
+not bundled and are not part of the scoring engine or its offline container.
+Missing tools are reported as unavailable. Image-wide luminance variation and
+OCR word recall are diagnostics, not WCAG certification or official judge scores.
 
 For a stronger check that also verifies the resulting artifacts:
 
@@ -89,7 +111,9 @@ with that VM. Evidence is written to `artifacts/verification/`.
 3. **Measure type.** Use local brand fonts and Skia glyph metrics with the
    renderer's wrapping routine. Typography follows source scale and hierarchy;
    constrained content rewraps before relaxing readability preferences.
-4. **Enforce the contract.** Validate the provisional official JSON schema,
+4. **Refine and enforce the contract.** Apply the bundled geometric nudger,
+   retaining the baseline if its local audit penalty increases, then validate
+   the provisional official JSON schema,
    preserve ids and content/style fields, keep non-cover images in source
    proportions, and contain both declared and rotated bounds.
 5. **Audit and choose.** Check collisions (on visible pixels), text overflow,
@@ -129,7 +153,8 @@ require smaller text; the studio reports those trade-offs. The engine cannot
 promise comfortable reading for arbitrary amounts of content on any size.
 
 GitHub Actions runs Python tests, the resize sweep, the offline container
-verification and Adobe's manifest build when the repository is pushed.
+verification and Adobe's manifest build when the repository is pushed. Successful
+runs provide verification evidence and optional source/add-on bundles as artifacts.
 
 ## Submission and finale
 
@@ -137,6 +162,12 @@ The attached challenge brief requires **engine + Dockerfile + approach/run
 README for stage one**. The full Express add-on, pitch and brief demo video
 are finale deliverables. The earlier starter FAQ's stage-one viewer requirement
 has been corrected to match that brief.
+
+The supplied October 22 information-session recap sets the submission deadline
+to **October 30, 2026**. The submission instructions require one teammate to
+complete the form with the repository link, team and registration details, and
+confirmation of availability for the **January 11–13, 2027** finale. The repository
+link is the code delivery; the bundles below are optional conveniences.
 
 - [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md): evidence and outstanding acceptance checks.
 - [`express-addon/README.md`](express-addon/README.md): build and sideload instructions.

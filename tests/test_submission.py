@@ -117,6 +117,16 @@ class TestStudioHTTP(unittest.TestCase):
         self.assertEqual(r['quality']['issues'],[])
         self.assertTrue(any('holiday' in w for w in r['warnings']))
 
+    def test_missing_ocr_is_not_reported_as_verified(self):
+        t = TASKS[0]
+        with mock.patch('scripts.ai_evaluator.evaluate_tesseract_ocr', return_value={'available': False}):
+            with self.request('/api/resize', {'source': t['source'], 'target_canvas': t['target_canvas']}) as response:
+                metrics = json.load(response)['visual_metrics']
+        self.assertFalse(metrics['ocr_available'])
+        self.assertEqual(metrics['ocr_recall'], 'Not measured')
+        self.assertEqual(metrics['legibility'], 'Not verified')
+        self.assertNotIn('WCAG', metrics['contrast'])
+
     def test_batch_archive_contains_correct_sized_real_pngs_and_json(self):
         targets=[{'width':300,'height':250},{'width':728,'height':90}]
         with self.request('/api/batch',{'source':TASKS[0]['source'],'targets':targets}) as r:
@@ -176,3 +186,21 @@ class TestRendererAssetFidelity(unittest.TestCase):
         contained=_fit_image(original,4,2,'contain')
         self.assertEqual(contained.getpixel((1,0)),(210,30,70,128))
         self.assertEqual(contained.getpixel((0,0)),(0,0,0,0))
+
+
+class TestOCRDiagnostics(unittest.TestCase):
+    def test_word_recall_counts_missing_and_repeated_words(self):
+        from scripts.ai_evaluator import evaluate_tesseract_ocr
+        process = mock.Mock(returncode=0, stdout='NEW product', stderr='')
+        with mock.patch('scripts.ai_evaluator.subprocess.run', return_value=process):
+            report = evaluate_tesseract_ocr(Path('unused.png'), ['New product, new launch'])
+        self.assertTrue(report['available'])
+        self.assertEqual(report['text_recall_pct'], 50.0)
+
+    def test_failed_ocr_does_not_produce_a_recall_score(self):
+        from scripts.ai_evaluator import evaluate_tesseract_ocr
+        process = mock.Mock(returncode=1, stdout='', stderr='cannot read image')
+        with mock.patch('scripts.ai_evaluator.subprocess.run', return_value=process):
+            report = evaluate_tesseract_ocr(Path('unused.png'), ['New product'])
+        self.assertFalse(report['available'])
+        self.assertNotIn('text_recall_pct', report)

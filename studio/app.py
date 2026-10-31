@@ -98,10 +98,10 @@ def process_resize(payload: dict) -> dict:
         font_sizes = [e['font_size'] for e in output['elements'] if e.get('type') == 'text']
         min_font = round(min(font_sizes), 1) if font_sizes else None
         expected_texts = [e.get('content', '') for e in source.get('elements', []) if e.get('type') == 'text' and len(e.get('content', '')) > 2]
-        balance_pct = 95
-        contrast_status = 'WCAG AA (High)'
-        contrast_std = 35.0
-        ocr_result = {'available': False, 'text_recall_pct': 100.0, 'sample_snippet': ''}
+        balance_pct = None
+        contrast_status = 'Not measured'
+        contrast_std = None
+        ocr_result = {'available': False, 'sample_snippet': ''}
         try:
             import numpy as np
             raw_bytes = base64.b64decode(png.split(',', 1)[1])
@@ -109,7 +109,7 @@ def process_resize(payload: dict) -> dict:
                 arr = np.array(im_rendered.convert('RGB'))
                 gray = np.dot(arr[..., :3], [0.2989, 0.5870, 0.1140])
                 contrast_std = float(np.std(gray))
-                contrast_status = 'WCAG AA (High)' if contrast_std >= 25 else 'Acceptable'
+                contrast_status = 'High image variation' if contrast_std >= 25 else 'Low image variation'
                 bg = np.median(arr[:10, :10], axis=(0, 1))
                 diff = np.linalg.norm(arr - bg, axis=-1)
                 total = float(np.sum(diff))
@@ -119,6 +119,8 @@ def process_resize(payload: dict) -> dict:
                     cy = float(np.sum(y_idx * diff) / total / im_rendered.height)
                     dist = math.sqrt((cx - 0.5) ** 2 + (cy - 0.5) ** 2)
                     balance_pct = max(0, min(100, int((1.0 - dist / 0.5) * 100)))
+                else:
+                    balance_pct = 100
 
             from scripts.ai_evaluator import evaluate_tesseract_ocr
             with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as ocr_tmp:
@@ -132,14 +134,16 @@ def process_resize(payload: dict) -> dict:
         except Exception:
             pass
 
+        recall = ocr_result.get('text_recall_pct') if ocr_result.get('available') else None
         visual_metrics = {
-            'balance_score': f'{balance_pct}%',
+            'balance_score': f'{balance_pct}%' if balance_pct is not None else 'Not measured',
             'min_font_px': f'{min_font} px' if min_font is not None else 'N/A',
             'contrast': contrast_status,
-            'contrast_std': round(contrast_std, 1),
-            'ocr_recall': f"{ocr_result.get('text_recall_pct', 100)}%",
+            'contrast_std': round(contrast_std, 1) if contrast_std is not None else None,
+            'ocr_available': bool(ocr_result.get('available')),
+            'ocr_recall': f'{recall}%' if recall is not None else 'Not measured',
             'ocr_sample': ocr_result.get('sample_snippet', ''),
-            'legibility': 'High (Verified)' if ocr_result.get('text_recall_pct', 100) >= 40 else 'Normal'
+            'legibility': 'OCR measured' if recall is not None else 'Not verified'
         }
         return {'output': output, 'quality': audit(source, output, assets), 'problems': problems,
                 'elapsed_ms': round(elapsed, 1), 'output_png': png, 'source_png': source_png,

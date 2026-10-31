@@ -103,6 +103,9 @@ class TestNeuralGeometricNudger(unittest.TestCase):
 
     def test_graceful_fallback_on_missing_weights(self) -> None:
         elements = copy.deepcopy(self.sample_elements)
+        original = copy.deepcopy(elements)
+        # A previously cached default model must not override an explicit path.
+        self.assertIsNotNone(get_model())
         # Pass non-existent path
         result = apply_geometric_nudges(
             elements,
@@ -111,8 +114,8 @@ class TestNeuralGeometricNudger(unittest.TestCase):
             weights_path="/tmp/non_existent_weights.npz",
         )
         # Should return elements intact without raising
-        self.assertEqual(len(result), len(elements))
-        self.assertEqual(result[1]["y"], elements[1]["y"])
+        self.assertEqual(result, original)
+        self.assertIsNone(get_model('/tmp/non_existent_weights.npz'))
 
 
 if __name__ == "__main__":

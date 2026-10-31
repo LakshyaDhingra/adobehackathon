@@ -90,9 +90,9 @@ function showResult(result) {
     if (result.visual_metrics) {
       if (result.visual_metrics.balance_score) checkItems.push(['Visual balance', result.visual_metrics.balance_score]);
       if (result.visual_metrics.min_font_px) checkItems.push(['Min text size', result.visual_metrics.min_font_px]);
-      $('aiOcrRecall').textContent = `${result.visual_metrics.ocr_recall || '100%'} (${result.visual_metrics.legibility || 'High'})`;
-      $('aiVisualBalance').textContent = result.visual_metrics.balance_score || '95%';
-      $('aiWcagContrast').textContent = result.visual_metrics.contrast || 'AA (High)';
+      $('aiOcrRecall').textContent = `${result.visual_metrics.ocr_recall || 'Not measured'} (${result.visual_metrics.legibility || 'Not verified'})`;
+      $('aiVisualBalance').textContent = result.visual_metrics.balance_score || 'Not measured';
+      $('aiWcagContrast').textContent = result.visual_metrics.contrast || 'Not measured';
     }
   for (const [label, value] of checkItems) {
     const item = document.createElement('div'); item.className = 'check'; item.textContent = label;
@@ -308,10 +308,14 @@ if (scanBtn) {
         $('aiVisionVerdictBox').hidden = false;
         $('aiVisionLatency').textContent = `${data.moondream_vlm.latency_s}s`;
         $('aiVisionAssessmentText').textContent = data.moondream_vlm.assessment;
-      } else {
+      } else if (data.tesseract_ocr?.available) {
         $('aiVisionVerdictBox').hidden = false;
         $('aiVisionLatency').textContent = 'OCR Engine';
-        $('aiVisionAssessmentText').textContent = `Pixel OCR Text Extracted: "${data.tesseract_ocr?.sample_snippet || 'Verified legible'}"`;
+        $('aiVisionAssessmentText').textContent = `Pixel OCR Text Extracted: "${data.tesseract_ocr.sample_snippet || 'No text detected'}"`;
+      } else {
+        $('aiVisionVerdictBox').hidden = false;
+        $('aiVisionLatency').textContent = 'Unavailable';
+        $('aiVisionAssessmentText').textContent = 'Vision model and OCR are unavailable. Pixel readability has not been verified.';
       }
     } catch (err) {
       $('aiVisionVerdictBox').hidden = false;

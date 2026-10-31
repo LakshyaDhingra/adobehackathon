@@ -2,6 +2,7 @@ name: Verify Chameleon submission
 on:
   push:
   pull_request:
+  workflow_dispatch:
 jobs:
   engine:
     runs-on: ubuntu-latest
@@ -13,14 +14,26 @@ jobs:
           cache: pip
       - run: sudo apt-get update && sudo apt-get install -y libgl1 libegl1 libglib2.0-0 fontconfig
       - run: pip install -r requirements.lock
-      - run: python -m unittest discover -s tests -v
-      - run: python scripts/verify_submission.py --seeds 40
+      - name: Run Python tests
+        shell: bash
+        run: |
+          mkdir -p artifacts/verification
+          python -m unittest discover -s tests -v 2>&1 | tee artifacts/verification/python-tests.log
+      - run: python scripts/verify_submission.py --seeds 60
       - run: python scripts/verify_docker.py
+      - run: python scripts/package_submission.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: verification
           path: artifacts/verification
+      - uses: actions/upload-artifact@v4
+        with:
+          name: submission-bundles
+          path: |
+            artifacts/chameleon-submission.zip
+            artifacts/chameleon-express-addon.zip
+          if-no-files-found: error
   express-addon:
     runs-on: ubuntu-latest
     defaults:
